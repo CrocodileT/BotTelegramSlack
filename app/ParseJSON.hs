@@ -2,6 +2,7 @@
 
 module ParseJSON where
 
+import Control.Applicative
 import Data.Aeson
 import qualified Data.HashMap.Strict as HM
 import Data.Vector (fromList, toList)
@@ -23,7 +24,8 @@ parseId = withObject "object" $ \obj -> do
 
 parseMessage :: Value -> Parser (String, Integer, Integer)
 parseMessage = withObject "object" $ \obj -> do
-  message <- obj .: "message" 
+  message <- obj .: "message" <|> obj .: "edited_message"
+
   update_id <- obj .: "update_id"
   (text, chat_id) <- parseChat message
   return (text, update_id, chat_id)

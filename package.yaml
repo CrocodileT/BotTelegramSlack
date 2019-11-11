@@ -34,6 +34,8 @@ dependencies:
 - req
 - unordered-containers
 - vector
+- mtl
+- hashable
 
 library:
   source-dirs: src
