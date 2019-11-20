@@ -8,6 +8,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Writer
 import Data.Aeson
+import Data.List
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import qualified Data.Text as T
@@ -24,29 +25,6 @@ import Config
 import ParseJSON
 import BotCommand
 
-{-key1 :: KeyButton
-key1 = object [
-  "text" .= "1"]
-
-key2 :: KeyButton
-key2 = object [
-  "text" .= "2"]
-
-key3 :: KeyButton
-key3 = object [
-  "text" .= "3"]
-
-key4 :: KeyButton
-key4 = object [
-  "text" .= "4"]
-
-key5 :: KeyButton
-key5 = object [
-  "text" .= "5"]
-
-replyKeyboardMarkup :: ReplyKey
-replyKeyboardMarkup = object [
-  "keyboard" .= [key1, key2, key3, key4, key5]]-}
 
 key1 :: KeyButton
 key1 = KeyButton "1"
@@ -104,8 +82,8 @@ sendTelegram args countRepeat = do
   sendTelegram args (countRepeat - 1)
 
 
-addUser :: Integer -> Integer -> String -> InfoUsers -> InfoUsers
-addUser update_id chat_id message users = (addUsers chat_id defaultRepeat (fst users), snd users)
+addUser :: Integer -> Integer -> InfoUsers -> InfoUsers
+addUser update_id chat_id users = (addUsers chat_id defaultRepeat (fst users), snd users)
 
 updateUser :: Integer -> Integer -> InfoUsers -> Req a
 updateUser update_id chat_id users = do
@@ -134,7 +112,21 @@ sendHelp update_id chat_id users = do
   let args = B.pack <$> ["/sendMessage?chat_id=", show chat_id, "&text=", messageHelp]
   sendTelegram args 1
   loop (update_id + 1) users
-      
+
+badInfo :: Integer -> Integer -> InfoUsers -> Req a
+badInfo update_id chat_id users = do
+  let args = B.pack <$> ["/sendMessage?chat_id=", show chat_id, "&text=", badMessage]
+  sendTelegram args 1
+  loop (update_id + 1) users
+
+checkMessage :: String -> Bool
+checkMessage message = 
+  let badChar = ["&","$","+",",",":","/","=",";","?","@"] in help badChar where
+  help [] = False
+  help (c:cs) | c `isPrefixOf` message = True
+              | otherwise              = help cs
+  
+     
 
 loop :: Integer -> InfoUsers -> Req a
 loop count users = do
@@ -146,13 +138,16 @@ loop count users = do
   
   let (message, update_id, chat_id) = head resParse
 
+
   let checkUserT = not $ checkUser chat_id (fst users)
-  let newUsers = if checkUserT then addUser update_id chat_id message users else users
+  let newUsers = if checkUserT then addUser update_id chat_id users else users
+
+  when (checkMessage message) (badInfo update_id chat_id newUsers)
   
   when (message == "/start" ) (loop (update_id + 1) newUsers)
   when (message == "/help"  ) (sendHelp update_id chat_id newUsers)
   when (message == "/repeat") (updateUser update_id chat_id newUsers)
-  liftIO $ print $ "info : (" ++ (show message) ++ " , " ++ (show update_id) ++ " , " ++ (show chat_id) ++ ")"
+  --liftIO $ print $ "info : (" ++ (show message) ++ " , " ++ (show update_id) ++ " , " ++ (show chat_id) ++ ")"
 
   let checkUpdateRepeat = checkRepeat chat_id (fst newUsers)
   when (checkUpdateRepeat) (checkButton update_id chat_id message newUsers)
@@ -161,6 +156,23 @@ loop count users = do
   loop (update_id + 1) newUsers-}
   answerUser update_id chat_id message newUsers
 
+  
+{-main :: IO ()
+main = liftIO $ runReq proxyHttpConfig $ loop 0 (HM.empty, HM.empty)-}
 
-main :: IO ()
-main = liftIO $ runReq proxyHttpConfig $ loop 0 (HM.empty, HM.empty)
+
+dataSlack :: KeyButton
+dataSlack = KeyButton "Hello, world"
+
+main = runReq defaultHttpConfig $ do
+  {-let urlHttps = (B.pack $ ("https://hooks.slack.com/services/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"))
+      (url, options) = fromJust $ parseUrlHttps urlHttps
+  ans <- req POST url (ReqBodyJson dataSlack) jsonResponse options
+  liftIO $ print (responseBody ans :: Value)-}
+  let urlHttps = (B.pack $ ("https://hooks.slack.com/services/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"))
+      (url, options) = fromJust $ parseUrlHttps urlHttps
+  ans <- req POST url (ReqBodyJson dataSlack) jsonResponse options
+  liftIO $ print (responseBody ans :: Value)
+
+
+-- https://slack.com/api/chat.postMessage/TQKC05FD3/DQKC05XM3/xoxp-835408185445-837610386518-837619345606-32ffc848362220d3f0b6e6fdb979abc2
