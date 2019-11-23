@@ -3,6 +3,7 @@
 module ParseJSON where
 
 import Control.Applicative
+import Control.Monad
 import Data.Aeson
 import qualified Data.HashMap.Strict as HM
 import Data.Vector (fromList, toList)
@@ -22,69 +23,42 @@ parseId = withObject "object" $ \obj -> do
   id <- obj .: "id"
   return id
 
-parseMessage :: Value -> Parser (String, Integer, Integer)
-parseMessage = withObject "object" $ \obj -> do
+parseMessageT :: Value -> Parser (String, Integer, Integer)
+parseMessageT = withObject "object" $ \obj -> do
   message <- obj .: "message" <|> obj .: "edited_message"
 
   update_id <- obj .: "update_id"
   (text, chat_id) <- parseChat message
   return (text, update_id, chat_id)
 
-parseArray :: Value -> Parser [(String, Integer, Integer)]
-parseArray = withArray "parseArray" $ \arr -> mapM parseMessage (toList arr)
+parseArrayT :: Value -> Parser [(String, Integer, Integer)]
+parseArrayT = withArray "parseArray" $ \arr -> mapM parseMessageT (toList arr)
 
 parseTelegram :: Value -> Parser [(String, Integer, Integer)]
 parseTelegram (Object obj) = 
   case HM.lookup "result" obj of
-    Just x -> parseArray x
+    Just x -> parseArrayT x
     _      -> fail "failed result"
 parseTelegram _            = fail "expected an object"
 
+parseTextS :: Object -> Parser (Maybe (String, String))
+parseTextS obj = do
+  text <- obj .: "text"
+  ts <- obj .: "ts"
+  return $ Just (text, ts)
 
-{-
- Object (fromList [
-   ("ok",Bool True),
-   ("result",Array [Object (fromList [
-     ("update_id",Number 8.45400663e8),
-     ("message",Object (fromList [
-       ("entities",Array [Object (fromList [
-         ("length",Number 5.0),
-         ("offset",Number 0.0),
-         ("type",String "bot_command")])]),
-       ("text",String "/help"),
-       ("from",Object (fromList [
-         ("first_name",String "\1043\1088\1080\1096\1072"),
-         ("username",String "Gmihtt"),
-         ("is_bot",Bool False),
-         ("id",Number 3.8187354e8),
-         ("language_code",String "ru")])),
-       ("chat",Object (fromList [
-         ("first_name",String "\1043\1088\1080\1096\1072"),
-         ("username",String "Gmihtt"),
-         ("id",Number 3.8187354e8),
-         ("type",String "private")])),
-       ("message_id",Number 6.0),
-       ("date",Number 1.573174483e9)]))]),
+parseMessageS :: Value -> Parser (Maybe (String, String))
+parseMessageS = withObject "object" $ \obj -> do
+  case HM.lookup "user" obj of
+    Nothing -> return Nothing
+    _       -> parseTextS obj
 
-                  Object (fromList [
-     ("update_id",Number 8.45400664e8),
-     ("message",Object (fromList [
-       ("entities",Array [Object (fromList [
-         ("length",Number 7.0),
-         ("offset",Number 0.0),
-         ("type",String "bot_command")])]),
-       ("text",String "/repeat"),
-       ("from",Object (fromList [
-         ("first_name",String "\1043\1088\1080\1096\1072"),
-         ("username",String "Gmihtt"),
-         ("is_bot",Bool False),
-         ("id",Number 3.8187354e8),
-         ("language_code",String "ru")])),
-       ("chat",Object (fromList [
-         ("first_name",String "\1043\1088\1080\1096\1072"),
-         ("username",String "Gmihtt"),
-         ("id",Number 3.8187354e8),
-         ("type",String "private")])),
-       ("message_id",Number 7.0),
-       ("date",Number 1.573257658e9)]))])])])
--}
+parseArrayS :: Value -> Parser [Maybe (String, String)]
+parseArrayS = withArray "parseArray" $ \arr -> filter(/= Nothing) <$> (mapM parseMessageS (toList arr))
+
+parseSlack :: Value -> Parser [Maybe (String, String)]
+parseSlack (Object obj) = 
+  case HM.lookup "messages" obj of
+    Just x -> parseArrayS x
+    _      -> fail "failed message"
+parseSlack _            = fail "expected an object"

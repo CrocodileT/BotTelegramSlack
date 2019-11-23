@@ -36,7 +36,7 @@ dependencies:
 - vector
 - mtl
 - hashable
-
+- delay
 library:
   source-dirs: src
 

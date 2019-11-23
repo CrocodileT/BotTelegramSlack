@@ -48,6 +48,7 @@ extra-deps:
 - unordered-containers-0.2.10.0
 - mtl-2.2.2
 - hashable-1.2.7.0
+- delay-0
 # - acme-missiles-0.3
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
