@@ -48,6 +48,7 @@ receiveSlack ts = do
 sendSlack :: Integer -> [B.ByteString] -> Req (JsonResponse Value)
 sendSlack 1 args = connectSlack POST args 
 sendSlack count args = do
+  delay (1 :: Integer)
   connectSlack POST args 
   sendSlack (count - 1) args
 
