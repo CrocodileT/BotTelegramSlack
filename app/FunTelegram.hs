@@ -21,7 +21,7 @@ import qualified Network.HTTP.Client as CL
 import qualified Data.ByteString.Lazy as LB
 
 import Config
-import ParseJSON
+import JsonTelegram
 import BotCommand
 
 key1 :: KeyButton
@@ -56,7 +56,6 @@ instance FromJSON ReplyKey
 
 
 --proxyHttpConfig = defaultHttpConfig { httpConfigProxy = Just (CL.Proxy (B.pack $ "200.111.182.6") 443)}
-proxyHttpConfig = defaultHttpConfig { httpConfigProxy = Just (CL.Proxy (B.pack $ "141.125.82.106") 80)}
 
 
 fromResultToList :: Result [(String, Integer, Integer)] -> [(String, Integer, Integer)]
