@@ -6,7 +6,6 @@ module FunSlack(runSlack) where
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Control.Monad.Writer
 import Data.Aeson
 import Data.List
 import Data.Char
@@ -17,15 +16,12 @@ import GHC.Generics
 import Network.HTTP.Req
 import qualified Data.ByteString.Char8 as B
 import Data.Aeson.Types 
-import qualified Data.HashMap.Strict as HM
-import qualified Network.HTTP.Client as CL
 import qualified Data.ByteString.Lazy as LB
 import Control.Time
 
 import Config
 import JsonSlack
 
-proxyHttpConfig = defaultHttpConfig { httpConfigProxy = Just (CL.Proxy (B.pack $ "141.125.82.106") 80)}
 
 fromResultToList :: Result [(String, String)] -> Req [(String, String)]
 fromResultToList (Success a) = return a
@@ -43,7 +39,7 @@ helpForm' text json = (B.pack <$> ["chat.postMessage", tokenBootSlack, idChannel
 
 checkMessage :: String -> String
 checkMessage message = 
-  let badChar = ["&","$","+",",",":","/","=",";","?","@"] in help badChar where
+  let badChar = ["&","$","+",",",":","=",";","@"] in help badChar where
   help [] = message
   help (c:cs) | c `isPrefixOf` message = badMessage
               | otherwise              = help cs
@@ -128,7 +124,9 @@ checkCommands repeat "_repeat" = do
           ":four:" -> return 4
           ":five:" -> return 5
           _ -> if all isDigit res then 
-                return (read res :: Integer) else helpLoop
+                return (read res :: Integer) else do
+                  sendSlack defaultRepeat $ helpForm "pls enter correct number"
+                  helpLoop
 
 checkCommands repeat message = do
   res <- sendSlack repeat $ helpForm message
@@ -148,13 +146,6 @@ loopSlack repeat = do
   --liftIO $ print ("print in Send :" ++ answer)
   send repeat answer 
   loopSlack repeat
-
-  {-res <- liftIO $ buttonSlack
-  let urlHttps = (B.pack $ "https://slack.com/api/") <> (foldr (<>) "" (B.pack <$> ["chat.postMessage", tokenBootSlack, idChannelTest, "text=1"])) <> (B.pack "&pretty=1")
-      (url, options) = fromJust $ parseUrlHttps urlHttps
-  ress <- req POST url (ReqBodyJson (decode (LB.fromStrict $ B.pack res))::ReqBodyJson (Maybe Value)) jsonResponse options
-  liftIO $ print (responseBody ress :: Value)
-  return ()-}
 
 runSlack :: IO ()
 runSlack = do 

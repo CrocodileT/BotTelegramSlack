@@ -2,11 +2,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module FunTelegram where
+module FunTelegram(runTelegram) where
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Control.Monad.Writer
 import Data.Aeson
 import Data.List
 import Data.Maybe (fromJust)
@@ -22,21 +21,13 @@ import qualified Data.ByteString.Lazy as LB
 
 import Config
 import JsonTelegram
-import BotCommand
+import DataUsers
 
-key1 :: KeyButton
+key1, key2, key3, key4, key5 :: KeyButton
 key1 = KeyButton "1"
-
-key2 :: KeyButton
 key2 = KeyButton "2"
-
-key3 :: KeyButton
 key3 = KeyButton "3"
-
-key4 :: KeyButton
 key4 = KeyButton "4"
-
-key5 :: KeyButton
 key5 = KeyButton "5"
 
 buttons :: ReplyKey
@@ -55,7 +46,7 @@ instance ToJSON ReplyKey
 instance FromJSON ReplyKey
 
 
---proxyHttpConfig = defaultHttpConfig { httpConfigProxy = Just (CL.Proxy (B.pack $ "200.111.182.6") 443)}
+proxyHttpConfig = defaultHttpConfig { httpConfigProxy = Just (CL.Proxy (B.pack $ "141.125.82.106") 80)}
 
 
 fromResultToList :: Result [(String, Integer, Integer)] -> [(String, Integer, Integer)]
@@ -86,8 +77,8 @@ updateUser :: Integer -> Integer -> InfoUsers -> Req a
 updateUser update_id chat_id users = do
   let newRepeat = countRepeat chat_id (fst users)
   let newUsers = (updateUsers chat_id (fst users), snd users)
-  --let buttons = ReplyKey { KeyButton "1", KeyButton "2", KeyButton "3", KeyButton "4", KeyButton "5" }
   let args = (B.pack <$> ["/sendMessage?chat_id=", show chat_id, "&text=", messageRepeat, (show newRepeat), "&reply_markup="]) <> [LB.toStrict $ encode $ buttons]
+
   sendTelegram args 1
   loop (update_id + 1) newUsers
 
@@ -118,7 +109,7 @@ badInfo update_id chat_id users = do
 
 checkMessage :: String -> Bool
 checkMessage message = 
-  let badChar = ["&","$","+",",",":","/","=",";","?","@"] in help badChar where
+  let badChar = ["&","$","+",",",":","=",";","@"] in help badChar where
   help [] = False
   help (c:cs) | c `isPrefixOf` message = True
               | otherwise              = help cs
@@ -152,3 +143,6 @@ loop count users = do
   {-sendTelegram ["/sendMessage?chat_id=", show chat_id, "&text=", message] defaultRepeat
   loop (update_id + 1) newUsers-}
   answerUser update_id chat_id message newUsers
+
+runTelegram :: IO ()
+runTelegram = liftIO $ runReq proxyHttpConfig $ loop defaultRepeat (HM.empty, HM.empty)

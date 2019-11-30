@@ -1,4 +1,4 @@
-module BotCommand where
+module DataUsers where
 
 import qualified Data.HashMap.Strict as HM
 

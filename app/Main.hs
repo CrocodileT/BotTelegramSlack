@@ -4,12 +4,16 @@
 
 module Main where
 
+import Control.Concurrent
+
 import Lib
-import Config
-import BotCommand
---import FunTelegram
+import FunTelegram
 import FunSlack
 
 
+
+
 main :: IO ()
-main = runSlack 
+main = do
+    forkIO runTelegram
+    runSlack 
