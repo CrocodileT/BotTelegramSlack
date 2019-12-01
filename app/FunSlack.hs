@@ -23,8 +23,8 @@ import Config
 import JsonSlack
 
 
-fromResultToList :: Result [(String, String)] -> Req [(String, String)]
-fromResultToList (Success a) = return a
+fromResultToList :: Result [(String, String)] -> [(String, String)]
+fromResultToList (Success a) = a
 fromResultToList (Error e) = do
   return [(e,"1.0")]
 
@@ -75,7 +75,7 @@ receiveSlack = do
 received :: Req String
 received = do
   res <- receiveSlack
-  resParse <- (fromResultToList) $ (fromJust <$>) <$> (parse parseSlack (responseBody res :: Value))
+  let resParse = (fromResultToList) $ (fromJust <$>) <$> (parse parseSlack (responseBody res :: Value))
   writeTs resParse
   return (create resParse)
   where
@@ -91,16 +91,15 @@ sendSlack repeat args = do
   connectSlack POST args 
   sendSlack (repeat - 1) args
 
-checkCommands :: Integer -> String -> Req ()
+checkCommands :: Integer -> String -> Req Integer
 checkCommands repeat "_help" = do
   res <- sendSlack repeat $ helpForm messageHelp
-  return ()
+  return repeat
 checkCommands repeat "_repeat" = do
-  --button <- liftIO $ buttonSlack
   sendSlack defaultRepeat $ helpForm messageSlackRepeat
   res <- helpLoop 
   sendSlack defaultRepeat $ helpForm $ successMessage ++ (show res)
-  loopSlack res
+  return res
   where
     helpLoop :: Req Integer
     helpLoop = do
@@ -118,25 +117,21 @@ checkCommands repeat "_repeat" = do
                   helpLoop
 checkCommands repeat message = do
   res <- sendSlack repeat $ helpForm message
-  return ()
+  return repeat
 
-send :: Integer -> String -> Req ()
+send :: Integer -> String -> Req Integer
 send repeat message = checkCommands repeat $ checkMessage message
 -----
 
 
-loopSlack :: Integer -> Req ()
-loopSlack repeat = do
+loop :: Integer -> Req ()
+loop repeat = do
   answer <- received
   liftIO $ print answer
-  when (null answer) (loopSlack repeat)
+  when (null answer) (loop repeat)
 
-  send repeat answer 
-  loopSlack repeat
+  newRepeat <- send repeat answer 
+  loop newRepeat
 
 runSlack :: IO ()
-runSlack = do 
-  --res <- readButtons
-  --print res
-  liftIO $ runReq defaultHttpConfig $ loopSlack defaultRepeat
-  --print $ show $ ((last []) :: Int)
+runSlack = liftIO $ runReq defaultHttpConfig $ loop defaultRepeat

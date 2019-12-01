@@ -13,5 +13,5 @@ successMessage = "New repeat : "
 tokenBootSlack = "?token=" ++ tokenSl
 tokenChannelTest = tokenChat
 tokenSlack = "?token=" ++ tokenChannelTest
-idChannelTest = "&channel=" ++ idChat ++ "&"
+idChannelTest = "&channel=" ++ tokenIdChat ++ "&"
 
