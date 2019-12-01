@@ -1,4 +1,4 @@
-module DataUsers where
+module DataBaseUsers where
 
 import qualified Data.HashMap.Strict as HM
 
@@ -13,27 +13,24 @@ type UpdateRepeat = Bool
 data UserRepeat = UserRepeat CountRepeat UpdateRepeat
 
 type Users = HM.HashMap UserId UserRepeat
-type TelegramUsers = Users
-type SlackUsers = Users
-type InfoUsers = (TelegramUsers, SlackUsers)
 
 
---sendMessage 
-
-addUsers :: Integer -> Integer -> Users -> Users
-addUsers userId repeat users = HM.insert userId (UserRepeat repeat False) users
+insertUser :: Integer -> Integer -> Users -> Users
+insertUser userId repeat users = HM.insert userId (UserRepeat repeat False) users
 
 updateUsers :: Integer -> Users -> Users
 updateUsers userId users = HM.adjust update userId users where
     update (UserRepeat countR updateR) = UserRepeat countR True
 
-checkUser :: Integer -> Users -> Bool
-checkUser userId users = HM.member userId users
+memberUser :: Integer -> Users -> Bool
+memberUser userId users = HM.member userId users
 
-countRepeat :: Integer -> Users -> Integer
-countRepeat userId users = case users HM.! userId of
+--Returns the count of message repeat for the user
+countUserRepeat :: Integer -> Users -> Integer
+countUserRepeat userId users = case users HM.! userId of
     UserRepeat countR _ -> countR
 
+--Checks if the user has replays installed
 checkRepeat :: Integer -> Users -> Bool
 checkRepeat userId users = case users HM.! userId of
     UserRepeat _ update -> update

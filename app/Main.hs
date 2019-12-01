@@ -7,8 +7,8 @@ module Main where
 import Control.Concurrent
 
 import Lib
-import FunTelegram
-import FunSlack
+import FunTelegram(runTelegram)
+import FunSlack(runSlack)
 
 
 

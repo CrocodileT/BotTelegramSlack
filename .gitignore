@@ -1,5 +1,6 @@
 .stack-work/
 BotTelegramSlack.cabal
-Config.hs
-*.txt
+Tokens.hs
+*.vscode
+*.history
 *~

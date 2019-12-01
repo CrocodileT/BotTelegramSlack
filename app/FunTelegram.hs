@@ -1,8 +1,8 @@
-{-# LANGUAGE DeriveGeneric     #-}
+
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module FunTelegram(runTelegram) where
+module FunTelegram where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -11,7 +11,6 @@ import Data.List
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import qualified Data.Text as T
-import GHC.Generics
 import Network.HTTP.Req
 import qualified Data.ByteString.Char8 as B
 import Data.Aeson.Types 
@@ -20,92 +19,17 @@ import qualified Network.HTTP.Client as CL
 import qualified Data.ByteString.Lazy as LB
 
 import Config
-import JsonTelegram
-import DataUsers
-
-key1, key2, key3, key4, key5 :: KeyButton
-key1 = KeyButton "1"
-key2 = KeyButton "2"
-key3 = KeyButton "3"
-key4 = KeyButton "4"
-key5 = KeyButton "5"
-
-buttons :: ReplyKey
-buttons = ReplyKey [[key1 , key2 , key3 ,key4 , key5]]
-
-data KeyButton = KeyButton {
-  text :: T.Text } deriving (Generic, Show)
-
-data ReplyKey = ReplyKey {
-  keyboard :: [[KeyButton]] } deriving (Generic, Show)
-
-instance ToJSON KeyButton
-instance FromJSON KeyButton
-
-instance ToJSON ReplyKey
-instance FromJSON ReplyKey
+import JsonTelegram 
+import qualified DataBaseUsers as D
 
 
 proxyHttpConfig = defaultHttpConfig { httpConfigProxy = Just (CL.Proxy (B.pack $ "141.125.82.106") 80)}
 
+type UserInfo = (String, Integer, Integer)
 
-fromResultToList :: Result [(String, Integer, Integer)] -> [(String, Integer, Integer)]
+fromResultToList :: Result [UserInfo] -> [UserInfo]
 fromResultToList (Success a) = a
 fromResultToList (Error e) = [(e,0,0)]
-
-answerTelegram :: (HttpMethod method, HttpBodyAllowed (AllowsBody method) (ProvidesBody NoReqBody)) => 
-  method -> [B.ByteString] -> Req (JsonResponse Value)
-answerTelegram method args = do
-  let urlHttps = (B.pack $ ("https://api.telegram.org/bot" ++ tokenTelegram)) <> (foldr (<>) "" args) 
-      (url, options) = fromJust $ parseUrlHttps urlHttps
-  req method url NoReqBody jsonResponse options
-
-receiveTelegram :: [B.ByteString] -> Req (JsonResponse Value)
-receiveTelegram args = answerTelegram GET args
-
-sendTelegram :: [B.ByteString] -> Integer -> Req (JsonResponse Value)
-sendTelegram args 1 = answerTelegram POST args
-sendTelegram args countRepeat = do
-  answerTelegram POST args
-  sendTelegram args (countRepeat - 1)
-
-
-addUser :: Integer -> Integer -> InfoUsers -> InfoUsers
-addUser update_id chat_id users = (addUsers chat_id defaultRepeat (fst users), snd users)
-
-updateUser :: Integer -> Integer -> InfoUsers -> Req a
-updateUser update_id chat_id users = do
-  let newRepeat = countRepeat chat_id (fst users)
-  let newUsers = (updateUsers chat_id (fst users), snd users)
-  let args = (B.pack <$> ["/sendMessage?chat_id=", show chat_id, "&text=", messageRepeat, (show newRepeat), "&reply_markup="]) <> [LB.toStrict $ encode $ buttons]
-
-  sendTelegram args 1
-  loop (update_id + 1) newUsers
-
-checkButton :: Integer -> Integer -> String -> InfoUsers -> Req a
-checkButton update_id chat_id message users = do
-  let newRepeat = (read message :: Integer)
-  let newUsers  = (updateRepeat chat_id newRepeat (fst users), snd users)
-  loop (update_id + 1) newUsers
-
-answerUser :: Integer -> Integer -> String -> InfoUsers -> Req a
-answerUser update_id chat_id message users = do
-  let newRepeat = countRepeat chat_id (fst users)
-  let args = B.pack <$> ["/sendMessage?chat_id=", show chat_id, "&text=", message]
-  sendTelegram args newRepeat
-  loop (update_id + 1) users
-
-sendHelp :: Integer -> Integer -> InfoUsers -> Req a
-sendHelp update_id chat_id users = do
-  let args = B.pack <$> ["/sendMessage?chat_id=", show chat_id, "&text=", messageHelp]
-  sendTelegram args 1
-  loop (update_id + 1) users
-
-badInfo :: Integer -> Integer -> InfoUsers -> Req a
-badInfo update_id chat_id users = do
-  let args = B.pack <$> ["/sendMessage?chat_id=", show chat_id, "&text=", badMessage]
-  sendTelegram args 1
-  loop (update_id + 1) users
 
 checkMessage :: String -> Bool
 checkMessage message = 
@@ -113,36 +37,100 @@ checkMessage message =
   help [] = False
   help (c:cs) | c `isPrefixOf` message = True
               | otherwise              = help cs
-  
-     
 
-loop :: Integer -> InfoUsers -> Req a
-loop count users = do
-  js <- receiveTelegram (B.pack <$> ["/getUpdates?offset=", show count])
+
+helpForm :: Integer -> String -> [B.ByteString]
+helpForm chat_id mes = B.pack <$> ["/sendMessage?chat_id=", show chat_id, "&text=", mes]
+
+addButton :: [B.ByteString] -> [B.ByteString]
+addButton args = args <> [B.pack "&reply_markup="] <> [LB.toStrict $ encode $ buttons]
+
+
+connectTelegram :: (HttpMethod method, HttpBodyAllowed (AllowsBody method) (ProvidesBody NoReqBody)) => 
+  method -> [B.ByteString] -> Req (JsonResponse Value)
+connectTelegram method args = do
+  let urlHttps = (B.pack $ ("https://api.telegram.org/bot" ++ tokenTelegram)) <> (foldr (<>) "" args) 
+      (url, options) = fromJust $ parseUrlHttps urlHttps
+  req method url NoReqBody jsonResponse options
+
+-----received
+receivedTelegram :: Integer -> Req (JsonResponse Value)
+receivedTelegram count = connectTelegram GET (B.pack <$> ["/getUpdates?offset=", show count])
+
+received :: Integer -> Req [(String, Integer, Integer)]
+received count = do
+  answer <- receivedTelegram count
   
-  let resParse = fromResultToList $ parse parseTelegram (responseBody js)
+  let resParse = fromResultToList $ parse parseTelegram (responseBody answer)
   liftIO $ print $ resParse
-  when (null resParse) (loop count users)
+  return resParse
+-----
+
+-----Send
+sendTelegram :: Integer -> [B.ByteString] -> Req (JsonResponse Value)
+sendTelegram 1 args  = connectTelegram POST args
+sendTelegram countRepeat args  = do
+  connectTelegram POST args
+  sendTelegram (countRepeat - 1) args
+
+
+addUser ::UserInfo -> D.Users -> D.Users
+addUser (_, _, chat_id) users = D.insertUser chat_id defaultRepeat users
+
+checkCommand, updateUserRepeat, checkButton, answerUser, sendHelp, badInfo :: UserInfo -> D.Users -> Req (D.Users)
+updateUserRepeat (_, _, chat_id) users = do
+  let newRepeat = D.countUserRepeat chat_id users
+  let newUsers = D.updateUsers chat_id users
+  sendTelegram 1 (addButton $ helpForm chat_id (messageRepeat ++  (show newRepeat)))
+  return newUsers
+
+checkButton (message, _, chat_id) users = do
+  let newRepeat = (read message :: Integer)
+  let newUsers  = D.updateRepeat chat_id newRepeat users
+  sendTelegram 1 (helpForm chat_id $ successMessage ++ show (newRepeat))
+  return newUsers
+
+answerUser (message, _, chat_id) users = do
+  let newRepeat = D.countUserRepeat chat_id users
+  sendTelegram newRepeat (helpForm chat_id message)
+  return users
+
+sendHelp (_, _, chat_id) users = do
+  sendTelegram 1 (helpForm chat_id messageHelp)
+  return users
+
+badInfo (_, _, chat_id) users = do
+  sendTelegram 1 (helpForm chat_id badMessage)
+  return users
+
+
+checkCommand info@("/start", _, _) users = return users
+checkCommand info@("/help", _, _) users = sendHelp info users
+checkCommand info@("/repeat", _, _) users = updateUserRepeat info users
+checkCommand info@(message, _, chat_id) users = do
+  let updateUserRepeat = D.checkRepeat chat_id users
+  newUsers <- if updateUserRepeat then checkButton info users
+                else answerUser info users
+  return newUsers
+
+send :: UserInfo -> D.Users -> Req (Integer, D.Users)
+send info@(message, update_id, chat_id) users = do
+  let resCheck = not $ D.memberUser chat_id users
+  let newUsers = if resCheck then addUser info users else users
   
-  let (message, update_id, chat_id) = head resParse
+  updateUsers <- case checkMessage message of
+                  True -> badInfo info newUsers
+                  _    -> checkCommand info newUsers
 
+  return (update_id + 1, updateUsers)
+-----
 
-  let checkUserT = not $ checkUser chat_id (fst users)
-  let newUsers = if checkUserT then addUser update_id chat_id users else users
-
-  when (checkMessage message) (badInfo update_id chat_id newUsers)
-  
-  when (message == "/start" ) (loop (update_id + 1) newUsers)
-  when (message == "/help"  ) (sendHelp update_id chat_id newUsers)
-  when (message == "/repeat") (updateUser update_id chat_id newUsers)
-  --liftIO $ print $ "info : (" ++ (show message) ++ " , " ++ (show update_id) ++ " , " ++ (show chat_id) ++ ")"
-
-  let checkUpdateRepeat = checkRepeat chat_id (fst newUsers)
-  when (checkUpdateRepeat) (checkButton update_id chat_id message newUsers)
-
-  {-sendTelegram ["/sendMessage?chat_id=", show chat_id, "&text=", message] defaultRepeat
-  loop (update_id + 1) newUsers-}
-  answerUser update_id chat_id message newUsers
+loop :: Integer -> D.Users -> Req ()
+loop count users = do
+  result <- received count
+  when (null result) (loop count users)
+  (newCount, newUsers) <- send (head result) users
+  loop newCount newUsers
 
 runTelegram :: IO ()
-runTelegram = liftIO $ runReq proxyHttpConfig $ loop defaultRepeat (HM.empty, HM.empty)
+runTelegram = liftIO $ runReq proxyHttpConfig $ loop defaultRepeat HM.empty

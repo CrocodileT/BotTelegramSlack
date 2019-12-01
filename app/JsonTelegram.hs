@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric     #-}
 
-module JsonTelegram (parseTelegram) where
+module JsonTelegram (parseTelegram, buttons) where
 
 import Control.Applicative
 import Control.Monad
@@ -8,6 +9,8 @@ import Data.Aeson
 import qualified Data.HashMap.Strict as HM
 import Data.Vector (toList)
 import Data.Aeson.Types 
+import GHC.Generics
+import qualified Data.Text as T
 
 parseChat :: Value -> Parser (String, Integer)
 parseChat = withObject "object" $ \obj -> do
@@ -40,3 +43,26 @@ parseTelegram (Object obj) =
     Just x -> parseArrayT x
     _      -> fail "failed result"
 parseTelegram _            = fail "expected an object"
+
+
+key1, key2, key3, key4, key5 :: KeyButton
+key1 = KeyButton "1"
+key2 = KeyButton "2"
+key3 = KeyButton "3"
+key4 = KeyButton "4"
+key5 = KeyButton "5"
+
+buttons :: ReplyKey
+buttons = ReplyKey [[key1 , key2 , key3 ,key4 , key5]]
+
+data KeyButton = KeyButton {
+  text :: T.Text } deriving (Generic, Show)
+
+data ReplyKey = ReplyKey {
+  keyboard :: [[KeyButton]] } deriving (Generic, Show)
+
+instance ToJSON KeyButton
+instance FromJSON KeyButton
+
+instance ToJSON ReplyKey
+instance FromJSON ReplyKey

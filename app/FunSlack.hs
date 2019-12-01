@@ -32,10 +32,6 @@ fromResultToList (Error e) = do
 helpForm :: String -> [B.ByteString]
 helpForm mes = B.pack <$> ["chat.postMessage", tokenBootSlack, idChannelTest, "text=" ++ mes]
 
-helpForm' :: String -> String ->[B.ByteString]
-helpForm' text json = (B.pack <$> ["chat.postMessage", tokenBootSlack, idChannelTest, "text=" ++ text]) ++ 
-  [(B.pack "&attachments=") <> (B.pack json)]
-
 
 checkMessage :: String -> String
 checkMessage message = 
@@ -44,13 +40,7 @@ checkMessage message =
   help (c:cs) | c `isPrefixOf` message = badMessage
               | otherwise              = help cs
 
-
 -----File
-{-readButtons :: IO String
-readButtons = do
-  json <- readFile "buttons.json"
-  return $ filter (\c -> c /= ' ' && c /= '\n') json-}
-
 readTs :: IO String
 readTs = do
   str <- readFile "lastTime.txt"
@@ -105,7 +95,6 @@ checkCommands :: Integer -> String -> Req ()
 checkCommands repeat "_help" = do
   res <- sendSlack repeat $ helpForm messageHelp
   return ()
-
 checkCommands repeat "_repeat" = do
   --button <- liftIO $ buttonSlack
   sendSlack defaultRepeat $ helpForm messageSlackRepeat
@@ -127,7 +116,6 @@ checkCommands repeat "_repeat" = do
                 return (read res :: Integer) else do
                   sendSlack defaultRepeat $ helpForm "pls enter correct number"
                   helpLoop
-
 checkCommands repeat message = do
   res <- sendSlack repeat $ helpForm message
   return ()
@@ -139,11 +127,10 @@ send repeat message = checkCommands repeat $ checkMessage message
 
 loopSlack :: Integer -> Req ()
 loopSlack repeat = do
-  --liftIO $ print "IN LOOOP"
   answer <- received
   liftIO $ print answer
   when (null answer) (loopSlack repeat)
-  --liftIO $ print ("print in Send :" ++ answer)
+
   send repeat answer 
   loopSlack repeat
 
