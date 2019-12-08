@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric     #-}
 
-module JsonTelegram (parseTelegram, buttons) where
+module Telegram.JsonTelegram (parseTelegram, buttons) where
 
 import Control.Applicative
 import Control.Monad
@@ -65,4 +65,4 @@ instance ToJSON KeyButton
 instance FromJSON KeyButton
 
 instance ToJSON ReplyKey
-instance FromJSON ReplyKey
+instance FromJSON ReplyKey  --where

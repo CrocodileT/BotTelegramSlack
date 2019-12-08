@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module FunSlack(runSlack) where
+module Slack.FunSlack where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -20,13 +20,12 @@ import qualified Data.ByteString.Lazy as LB
 import Control.Time
 
 import Config
-import JsonSlack
+import Slack.JsonSlack
 
 
 fromResultToList :: Result [(String, String)] -> [(String, String)]
 fromResultToList (Success a) = a
-fromResultToList (Error e) = do
-  return [(e,"1.0")]
+fromResultToList (Error e) = [(e,"1.0")]
 
 
 helpForm :: String -> [B.ByteString]

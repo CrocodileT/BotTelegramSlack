@@ -1,17 +1,40 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
+module Main where
 
 import Test.Tasty
 import Test.Tasty.HUnit
+import Data.Aeson
+import GHC.Exts
+import GHC.Generics
+import Network.HTTP.Req
+import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Char8 as B
 
-import FunTelegram
+import Telegram.FunTelegram
 
-{-main :: IO ()
+main :: IO ()
 main = do
-    defaultMain (testGroup "Our Library Tests" [sayYoTest, add5Test])
+    defaultMain (testGroup "Our Library Tests" [check])
 
-sayYoTest :: TestTree
-sayYoTest = testCase "Testing sayYo"
-  (assertEqual "Should say Yo to Friend!" "Yo Friend!" (sayYo "Friend"))
+checkResult :: Req [(String, Integer, Integer)] -> [(String, Integer, Integer)] -> IO Bool
+checkResult r s = runReq defaultHttpConfig $ do
+  res <- r
+  return $ res == s
+check1 = testCase "recived test 1" $ do
+  res <- checkResult (received tg1) [("hello", 1, 2)]
+  if res 
+    then print "succesful recived test 1" 
+    else assertFailure "error recived test 1"
 
-add5Test :: TestTree
-add5Test = testCase "Testing add5"
-  (assertEqual "Should add 5 to get 10" 10 (add5 5))-}
+tg1 :: Req Value
+tg1 = return $ Object $ fromList [
+  ("result", Array $ fromList [
+    Object $ fromList [ 
+      ("update_id", Number 1),
+      ("message", Object $ fromList [
+        ("chat", Object $ fromList [("id", Number 2)]),
+        ("text", "hello")]
+      )
+    ]])
+  ]

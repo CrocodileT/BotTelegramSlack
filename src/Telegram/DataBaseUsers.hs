@@ -1,4 +1,4 @@
-module DataBaseUsers where
+module Telegram.DataBaseUsers where
 
 import qualified Data.HashMap.Strict as HM
 

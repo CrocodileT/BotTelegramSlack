@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module JsonSlack (parseSlack) where
+module Slack.JsonSlack (parseSlack) where
 
 import Control.Applicative
 import Control.Monad

@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module FunTelegram where
+module Telegram.FunTelegram where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -19,17 +19,17 @@ import qualified Network.HTTP.Client as CL
 import qualified Data.ByteString.Lazy as LB
 
 import Config
-import JsonTelegram 
-import qualified DataBaseUsers as D
+import Telegram.JsonTelegram 
+import qualified Telegram.DataBaseUsers as D
 
 {-
-  Бот постоянно опрашивает telegram о том, появились ли новые сообщения или нет.
-  Если новые сообщения появились (received возвращает не пустой список),
-  то с помощью функции send отвечаем на самое последнее сообщение, и делаем смещение по параметру offset
-  С помощью /repeat, каждый пользователь может установить свое персональное количество повторов
-  Для хранения повторов каждого пользователя используется DataBaseUsers, 
-  Информация о пользователях хранится только во время работы бота. 
-  Ответы от telegram обрабатываются в JsonTelegram
+  The bot polls telegram about whether there are new messages or not.
+  If new messages appeared (received returns a non-empty list),
+  then use the send function to respond to the most recent message, and make the offset parameter offset
+  With / repeat, each user can set their personal number of repetitions
+    DataBaseUsers is used to store repetitions of each user, 
+  User information is stored only while the bot is running. 
+    Responses from telegram are processed in JsonTelegram
 -}
 
 proxyHttpConfig = defaultHttpConfig { httpConfigProxy = Just (CL.Proxy (B.pack $ "141.125.82.106") 80)}
@@ -46,7 +46,7 @@ fromResultToList :: Result [UserInfo] -> [UserInfo]
 fromResultToList (Success a) = a
 fromResultToList (Error e) = [(e,0,0)]
 
---Check url about bad char
+----------Check url about bad char
 checkMessage :: String -> Bool
 checkMessage message = 
   let badChar = ["&","$","+",",",":","=",";","@"] in help badChar where
@@ -65,22 +65,26 @@ connectTelegram :: (HttpMethod method, HttpBodyAllowed (AllowsBody method) (Prov
 connectTelegram method args = do
   let urlHttps = (B.pack $ ("https://api.telegram.org/bot" ++ tokenTelegram)) <> (foldr (<>) "" args) 
       (url, options) = fromJust $ parseUrlHttps urlHttps
+  --liftIO $ print url
   req method url NoReqBody jsonResponse options
+----------
 
------received
-receivedTelegram :: Integer -> Req (JsonResponse Value)
-receivedTelegram count = connectTelegram GET (B.pack <$> ["/getUpdates?offset=", show count])
+----------received
+getTelegram :: Integer -> Req Value
+getTelegram offset = do
+  res <- connectTelegram GET (B.pack <$> ["/getUpdates?offset=", show offset])
+  return $ responseBody res
 
-received :: Integer -> Req [(String, Integer, Integer)]
-received count = do
-  answer <- receivedTelegram count
+received :: Req Value -> Req [(String, Integer, Integer)]
+received getTg = do
+  answer <- getTg
   
-  let resParse = fromResultToList $ parse parseTelegram (responseBody answer)
+  let resParse = fromResultToList $ parse parseTelegram answer
   liftIO $ print $ resParse
   return resParse
------
+----------
 
------Send
+----------Send
 sendTelegram :: Integer -> [B.ByteString] -> Req (JsonResponse Value)
 sendTelegram 1 args  = connectTelegram POST args
 sendTelegram countRepeat args  = do
@@ -121,9 +125,9 @@ badInfo (_, _, chat_id) users = do
 checkCommand info@("/start", _, _) users = return users
 checkCommand info@("/help", _, _) users = sendHelp info users
 {-
-Если пользователь начал устанавливать количество повторов
-То для него значение UpdateRepeat в DataBase будет True 
-и пока он не введет число он не выйдет он бот будет просить его ввести число
+If the user has started to set the number of repetitions
+Then for it the value of UpdateRepeat in the DataBase will be True 
+and until he enters a number, the bot will ask him to enter a number
 -}
 checkCommand info@("/repeat", _, _) users = updateUserRepeat info users
 checkCommand info@(message, _, chat_id) users = do
@@ -142,12 +146,12 @@ send info@(message, update_id, chat_id) users = do
                   _    -> checkCommand info newUsers
 
   return (update_id + 1, updateUsers)
------
+----------
 
 loop :: Integer -> D.Users -> Req ()
-loop count users = do
-  result <- received count
-  when (null result) (loop count users)
+loop offset users = do
+  result <- received $ getTelegram offset
+  when (null result) (loop offset users)
   (newCount, newUsers) <- send (head result) users
   loop newCount newUsers
 
