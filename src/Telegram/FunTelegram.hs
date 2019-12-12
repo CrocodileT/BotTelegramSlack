@@ -61,89 +61,92 @@ addButton :: [B.ByteString] -> [B.ByteString]
 addButton args = args <> [B.pack "&reply_markup="] <> [LB.toStrict $ encode $ buttons]
 
 connectTelegram :: (HttpMethod method, HttpBodyAllowed (AllowsBody method) (ProvidesBody NoReqBody)) => 
-  method -> [B.ByteString] -> Req (JsonResponse Value)
+  method -> [B.ByteString] -> Req Value
 connectTelegram method args = do
   let urlHttps = (B.pack $ ("https://api.telegram.org/bot" ++ tokenTelegram)) <> (foldr (<>) "" args) 
       (url, options) = fromJust $ parseUrlHttps urlHttps
-  --liftIO $ print url
-  req method url NoReqBody jsonResponse options
+  res <- req method url NoReqBody jsonResponse options
+  return $ responseBody res
+ 
 ----------
 
 ----------received
 getTelegram :: Integer -> Req Value
 getTelegram offset = do
   res <- connectTelegram GET (B.pack <$> ["/getUpdates?offset=", show offset])
-  return $ responseBody res
+  return res
 
-received :: Req Value -> Req [(String, Integer, Integer)]
+received :: Req Value -> Req [UserInfo]
 received getTg = do
   answer <- getTg
   
   let resParse = fromResultToList $ parse parseTelegram answer
-  liftIO $ print $ resParse
   return resParse
 ----------
 
 ----------Send
-sendTelegram :: Integer -> [B.ByteString] -> Req (JsonResponse Value)
+sendTelegram :: Integer -> [B.ByteString] -> Req Value
 sendTelegram 1 args  = connectTelegram POST args
 sendTelegram countRepeat args  = do
   connectTelegram POST args
   sendTelegram (countRepeat - 1) args
 
-
 addUser ::UserInfo -> D.Users -> D.Users
 addUser (_, _, chat_id) users = D.insertUser chat_id defaultRepeat users
 
-checkCommand, updateUserRepeat, checkButton, answerUser, sendHelp, badInfo :: UserInfo -> D.Users -> Req (D.Users)
-updateUserRepeat (_, _, chat_id) users = do
+checkCommand, updateUserRepeat, checkButton, answerUser, sendHelp, badInfo :: 
+  UserInfo -> D.Users -> (Integer -> [B.ByteString] -> Req Value) -> Req (D.Users)
+updateUserRepeat (_, _, chat_id) users sendTg = do
   let newRepeat = D.returnCountRepeat chat_id users
-  let newUsers = D.waitRepeatUsers chat_id users
-  sendTelegram 1 (addButton $ helpForm chat_id (messageRepeat ++  (show newRepeat)))
+  let newUsers  = D.waitRepeatUsers chat_id users
+  sendTg 1 (addButton $ helpForm chat_id (messageRepeat ++  (show newRepeat)))
   return newUsers
 
-checkButton (message, _, chat_id) users = do
+checkButton (message, _, chat_id) users sendTg = do
   let newRepeat = (read message :: Integer)
   let newUsers  = D.setNewRepeat chat_id newRepeat users
-  sendTelegram 1 (helpForm chat_id $ successMessage ++ show (newRepeat))
+  sendTg 1 (helpForm chat_id $ successMessage ++ show (newRepeat))
   return newUsers
 
-answerUser (message, _, chat_id) users = do
+answerUser (message, _, chat_id) users sendTg = do
   let newRepeat = D.returnCountRepeat chat_id users
-  sendTelegram newRepeat (helpForm chat_id message)
+  sendTg newRepeat (helpForm chat_id message)
   return users
 
-sendHelp (_, _, chat_id) users = do
-  sendTelegram 1 (helpForm chat_id messageHelp)
+sendHelp (_, _, chat_id) users sendTg = do
+  sendTg 1 (helpForm chat_id messageHelp)
   return users
 
-badInfo (_, _, chat_id) users = do
-  sendTelegram 1 (helpForm chat_id badMessage)
+badInfo (_, _, chat_id) users sendTg = do
+  sendTg 1 (helpForm chat_id badMessage)
   return users
 
 
-checkCommand info@("/start", _, _) users = return users
-checkCommand info@("/help", _, _) users = sendHelp info users
+checkCommand info@("/start", _, _) users sendTg = return users
+checkCommand info@("/help", _, _) users sendTg = sendHelp info users sendTg
 {-
 If the user has started to set the number of repetitions
 Then for it the value of UpdateRepeat in the DataBase will be True 
 and until he enters a number, the bot will ask him to enter a number
 -}
-checkCommand info@("/repeat", _, _) users = updateUserRepeat info users
-checkCommand info@(message, _, chat_id) users = do
+checkCommand info@("/repeat", _, _) users sendTg = updateUserRepeat info users sendTg
+checkCommand info@(message, _, chat_id) users sendTg = do
   let updateRepeat = D.returnUpdateRepeat chat_id users
-  newUsers <- if updateRepeat then checkButton info users
-                else answerUser info users
+  newUsers <- if updateRepeat 
+                then checkButton info users sendTg
+                else answerUser info users sendTg
   return newUsers
 
-send :: UserInfo -> D.Users -> Req (Integer, D.Users)
-send info@(message, update_id, chat_id) users = do
+send :: UserInfo -> D.Users -> (Integer -> [B.ByteString] -> Req Value) -> Req (Integer, D.Users)
+send info@(message, update_id, chat_id) users sendTg = do
   let resCheck = not $ D.memberUser chat_id users
-  let newUsers = if resCheck then addUser info users else users
+  let newUsers = if resCheck 
+                    then addUser info users 
+                    else users
   
   updateUsers <- case checkMessage message of
-                  True -> badInfo info newUsers
-                  _    -> checkCommand info newUsers
+                  True -> badInfo info newUsers sendTg
+                  _    -> checkCommand info newUsers sendTg
 
   return (update_id + 1, updateUsers)
 ----------
@@ -152,7 +155,7 @@ loop :: Integer -> D.Users -> Req ()
 loop offset users = do
   result <- received $ getTelegram offset
   when (null result) (loop offset users)
-  (newCount, newUsers) <- send (head result) users
+  (newCount, newUsers) <- send (head result) users sendTelegram
   loop newCount newUsers
 
 runTelegram :: IO ()

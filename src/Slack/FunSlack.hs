@@ -55,16 +55,17 @@ writeTs mes = do
 
 
 connectSlack :: (HttpMethod method, HttpBodyAllowed (AllowsBody method) (ProvidesBody NoReqBody)) => 
-  method -> [B.ByteString] -> Req (JsonResponse Value)
+  method -> [B.ByteString] -> Req Value
 connectSlack method args = do
   delay (1 :: Integer)
   let urlHttps = (B.pack $ "https://slack.com/api/") <> (foldr (<>) "" args) <> (B.pack "&pretty=1")
       (url, options) = fromJust $ parseUrlHttps urlHttps
-  req method url NoReqBody jsonResponse options
+  res <- req method url NoReqBody jsonResponse options
+  return $ responseBody res
 
 
 -----Received
-receiveSlack :: Req (JsonResponse Value)
+receiveSlack :: Req Value
 receiveSlack = do 
   lastTs <- liftIO readTs
   let args = B.pack <$> ["channels.history", tokenSlack, idChannelTest, "&oldest=" ++ lastTs]
@@ -84,7 +85,7 @@ received = do
 -----
 
 -----Send
-sendSlack :: Integer -> [B.ByteString] -> Req (JsonResponse Value)
+sendSlack :: Integer -> [B.ByteString] -> Req Value
 sendSlack 1 args = connectSlack POST args 
 sendSlack repeat args = do
   connectSlack POST args 

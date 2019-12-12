@@ -10,7 +10,7 @@ import Config
 -}
 type CountRepeat = Integer
 type UpdateRepeat = Bool
-data UserRepeat = UserRepeat CountRepeat UpdateRepeat
+data UserRepeat = UserRepeat CountRepeat UpdateRepeat deriving (Eq)
 
 {-Users :
   Database for users is a Map, find in the map is O(log(n)) and function insert in Map isn't used not often, 
