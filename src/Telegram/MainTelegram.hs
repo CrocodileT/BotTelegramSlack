@@ -17,13 +17,13 @@ import Telegram.Send
 import qualified Telegram.DataBaseUsers as D (Users)
 
 {-
-  The bot polls telegram about whether there are new messages or not.
-  If new messages appeared (received returns a non-empty list),
-  then use the send function to respond to the most recent message, and make the offset parameter offset
-  With / repeat, each user can set their personal number of repetitions
-    DataBaseUsers is used to store repetitions of each user, 
-  User information is stored only while the bot is running. 
-    Responses from telegram are processed in JsonTelegram
+The bot polls telegram about whether there are new messages or not.
+If new messages appeared (received returns a non-empty list),
+then use the send function to respond to the most recent message, and make the offset parameter offset
+With / repeat, each user can set their personal number of repetitions
+DataBaseUsers is used to store repetitions of each user, 
+User information is stored only while the bot is running. 
+Responses from telegram are processed in JsonTelegram
 -}
 
 proxyHttpConfig = defaultHttpConfig { httpConfigProxy = Just (CL.Proxy (B.pack $ "141.125.82.106") 80)}

@@ -7,7 +7,7 @@ module Main where
 import Control.Concurrent
 
 import Telegram.MainTelegram(runTelegram)
-import Slack.FunSlack(runSlack)
+import Slack.MainSlack(runSlack)
 
 
 {-

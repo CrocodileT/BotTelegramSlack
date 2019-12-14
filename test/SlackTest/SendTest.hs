@@ -14,7 +14,7 @@ import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Char8 as B
 import qualified Data.HashMap.Strict as HM
 
-import Slack.FunSlack
+import Slack.Send
 
 checkResult :: Eq a => Req a -> Req a -> IO Bool
 checkResult r s = runReq defaultHttpConfig $ do
