@@ -102,6 +102,13 @@ packages:
       sha256: 14b6dfd690427d70a1e70f8695b3a712c19bea7ed60e6624a3df51123920b6bd
   original:
     hackage: delay-0
+- completed:
+    hackage: haskell-formatter-2.0.2@sha256:6353679939b8534a824926c480d7a393ac204d84f411a07f30a0e9258a1b093f,3665
+    pantry-tree:
+      size: 3771
+      sha256: 52adc7064f8b80b92d13612a81c41e289c1eee46a69c1474e430398e0dee7847
+  original:
+    hackage: haskell-formatter-2.0.2
 snapshots:
 - completed:
     size: 545658

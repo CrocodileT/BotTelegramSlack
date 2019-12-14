@@ -37,6 +37,7 @@ dependencies:
 - mtl
 - hashable
 - delay
+- haskell-formatter
 library:
   source-dirs: src
 

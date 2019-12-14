@@ -13,7 +13,7 @@ import Network.HTTP.Req
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Char8 as B
 
-import Telegram.FunTelegram
+import Telegram.Received
 
 checkResult :: Eq a => Req a -> a -> IO Bool
 checkResult r s = runReq defaultHttpConfig $ do

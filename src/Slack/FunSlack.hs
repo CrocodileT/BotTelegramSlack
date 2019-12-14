@@ -72,11 +72,11 @@ receiveSlack = do
   connectSlack GET args 
 
 
-received :: Req String
-received = do
-  res <- receiveSlack
-  let resParse = (fromResultToList) $ (fromJust <$>) <$> (parse parseSlack (responseBody res :: Value))
-  writeTs resParse
+received :: ([(String, String)] -> Req ()) -> Req Value -> Req String
+received tsWrite recSlack = do
+  res <- recSlack
+  let resParse = (fromResultToList) $ (fromJust <$>) <$> (parse parseSlack res)
+  tsWrite resParse
   return (create resParse)
   where
     create :: [(String,String)] -> String
@@ -91,19 +91,19 @@ sendSlack repeat args = do
   connectSlack POST args 
   sendSlack (repeat - 1) args
 
-checkCommands :: Integer -> String -> Req Integer
-checkCommands repeat "_help" = do
-  res <- sendSlack repeat $ helpForm messageHelp
+checkCommands :: Integer -> String -> (Integer -> [B.ByteString] -> Req Value) -> Req Integer
+checkCommands repeat "_help" sendS = do
+  res <- sendS repeat $ helpForm messageHelp
   return repeat
-checkCommands repeat "_repeat" = do
-  sendSlack defaultRepeat $ helpForm messageSlackRepeat
+checkCommands repeat "_repeat" sendS = do
+  sendS defaultRepeat $ helpForm messageSlackRepeat
   res <- helpLoop 
-  sendSlack defaultRepeat $ helpForm $ successMessage ++ (show res)
+  sendS defaultRepeat $ helpForm $ successMessage ++ (show res)
   return res
   where
     helpLoop :: Req Integer
     helpLoop = do
-        res <- received
+        res <- received writeTs receiveSlack
         case res of
           ""       -> helpLoop 
           ":one:"  -> return 1
@@ -113,20 +113,20 @@ checkCommands repeat "_repeat" = do
           ":five:" -> return 5
           _ -> if all isDigit res then 
                 return (read res :: Integer) else do
-                  sendSlack defaultRepeat $ helpForm "pls enter correct number"
-                  helpLoop
-checkCommands repeat message = do
-  res <- sendSlack repeat $ helpForm message
+                sendS defaultRepeat $ helpForm "pls enter correct number"
+                helpLoop
+checkCommands repeat message sendS = do
+  res <- sendS repeat $ helpForm message
   return repeat
 
 send :: Integer -> String -> Req Integer
-send repeat message = checkCommands repeat $ checkMessage message
+send repeat message = checkCommands repeat (checkMessage message) sendSlack
 -----
 
 
 loop :: Integer -> Req ()
 loop repeat = do
-  answer <- received
+  answer <- received writeTs receiveSlack
   liftIO $ print answer
   when (null answer) (loop repeat)
 

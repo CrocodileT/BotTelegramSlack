@@ -29,4 +29,4 @@ parseSlack (Object obj) =
   case HM.lookup "messages" obj of
     Just x -> parseArrayS x
     _      -> fail "failed message"
-parseSlack _            = fail "expected an object"
+parseSlack _ = fail "expected an object"

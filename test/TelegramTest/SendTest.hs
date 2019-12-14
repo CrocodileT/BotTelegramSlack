@@ -14,7 +14,7 @@ import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Char8 as B
 import qualified Data.HashMap.Strict as HM
 
-import Telegram.FunTelegram
+import Telegram.Send
 import qualified Telegram.DataBaseUsers as D
 
 checkResult :: Eq a => Req a -> a -> IO Bool
@@ -61,7 +61,7 @@ emptySend _ _= return Null
 user = HM.singleton 1 (D.UserRepeat 1 False)
 
 send1 :: IO Bool 
-send1 = checkResult (send ("hello", 1, 2) HM.empty emptySend) (2, user)
+send1 = checkResult (send ("hello", 1, 1) HM.empty emptySend) (2, user)
 
 send2 :: IO Bool
 send2 = checkResult (send ("hello", 1, 2) user emptySend) (2, D.insertUser 2 1 user)
